@@ -1,0 +1,761 @@
+Description: Add CoreOS support
+ Allow running and monitoring on CoreOS servers 
+Author: Boris HUISGEN <bhuisgen@hbis.fr>
+Last-Update: 2014-10-10
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/include/common.h
++++ b/include/common.h
+@@ -1067,4 +1067,7 @@
+ #define ZBX_SESSION_ACTIVE	0
+ #define ZBX_SESSION_PASSIVE	1
+ 
++#define ZBX_RUN_BACKGROUND  0
++#define ZBX_RUN_FOREGROUND  1
++
+ #endif
+--- a/include/daemon.h
++++ b/include/daemon.h
+@@ -30,7 +30,7 @@
+ 
+ #include "threads.h"
+ 
+-int	daemon_start(int allow_root);
++int	daemon_start(int allow_root, int run_foreground);
+ void	daemon_stop();
+ 
+ int	zbx_sigusr_send(zbx_task_t task);
+@@ -38,6 +38,6 @@
+ #define ZBX_IS_RUNNING()	1
+ #define ZBX_DO_EXIT()
+ 
+-#define START_MAIN_ZABBIX_ENTRY(a)	daemon_start(a)
++#define START_MAIN_ZABBIX_ENTRY(a, f)	daemon_start(a, f)
+ 
+ #endif	/* ZABBIX_DAEMON_H */
+--- a/src/libs/zbxnix/daemon.c
++++ b/src/libs/zbxnix/daemon.c
+@@ -134,13 +134,14 @@
+  * Purpose: init process as daemon                                            *
+  *                                                                            *
+  * Parameters: allow_root - allow root permission for application             *
++ *             run_foreground - allow running in foreground                   *
+  *                                                                            *
+  * Author: Alexei Vladishev                                                   *
+  *                                                                            *
+  * Comments: it doesn't allow running under 'root' if allow_root is zero      *
+  *                                                                            *
+  ******************************************************************************/
+-int	daemon_start(int allow_root)
++int	daemon_start(int allow_root, int run_foreground)
+ {
+ 	pid_t			pid;
+ 	struct passwd		*pwd;
+@@ -186,15 +187,20 @@
+ #endif
+ 	}
+ 
+-	if (0 != (pid = zbx_fork()))
+-		exit(0);
++	if (ZBX_RUN_FOREGROUND != run_foreground)
++		if (0 != (pid = zbx_fork()))
++			exit(0);
+ 
+ 	setsid();
+ 
+ 	signal(SIGHUP, SIG_IGN);
+ 
+-	if (0 != (pid = zbx_fork()))
+-		exit(0);
++	if (ZBX_RUN_FOREGROUND == run_foreground) {
++		zabbix_log(LOG_LEVEL_INFORMATION, "Running in foreground");
++	} else {
++		if (0 != (pid = zbx_fork()))
++			exit(0);
++	}
+ 
+ 	if (-1 == chdir("/"))	/* this is to eliminate warning: ignoring return value of chdir */
+ 		assert(0);
+--- a/src/zabbix_agent/zabbix_agentd.c
++++ b/src/zabbix_agent/zabbix_agentd.c
+@@ -58,6 +58,8 @@
+ 	static char	DEFAULT_CONFIG_FILE[]	= SYSCONFDIR "/zabbix_agentd.conf";
+ #endif
+ 
++int CONFIG_FOREGROUND = ZBX_RUN_FOREGROUND;
++
+ /* application TITLE */
+ const char	title_message[] = APPLICATION_NAME
+ #if defined(_WIN64)
+@@ -77,7 +79,7 @@
+ 
+ /* application USAGE message */
+ const char	usage_message[] =
+-	"[-Vhp]"
++	"[-Vhfp]"
+ #ifdef _WINDOWS
+ 	" [-idsx] [-m]"
+ #endif
+@@ -89,6 +91,7 @@
+ 	"Options:",
+ 	"",
+ 	"  -c --config <config-file>  Absolute path to the configuration file",
++	"  -f --foreground            Run in foreground",
+ 	"  -p --print                 Print known items and exit",
+ 	"  -t --test <item key>       Test specified item and exit",
+ 	"  -h --help                  Give this help",
+@@ -115,6 +118,7 @@
+ 	{"config",		1,	NULL,	'c'},
+ 	{"help",		0,	NULL,	'h'},
+ 	{"version",		0,	NULL,	'V'},
++	{"foreground",  0,  NULL,   'f'},
+ 	{"print",		0,	NULL,	'p'},
+ 	{"test",		1,	NULL,	't'},
+ #ifdef _WINDOWS
+@@ -130,7 +134,7 @@
+ };
+ 
+ static char	shortopts[] =
+-	"c:hVpt:"
++	"c:hVfpt:"
+ #ifdef _WINDOWS
+ 	"idsxm"
+ #endif
+@@ -178,6 +182,9 @@
+ #endif
+ 				exit(EXIT_FAILURE);
+ 				break;
++			case 'f':
++				CONFIG_FOREGROUND = ZBX_RUN_FOREGROUND;
++				break;
+ 			case 'p':
+ 				if (ZBX_TASK_START == t->task)
+ 					t->task = ZBX_TASK_PRINT_SUPPORTED;
+@@ -839,7 +846,7 @@
+ 			break;
+ 	}
+ 
+-	START_MAIN_ZABBIX_ENTRY(CONFIG_ALLOW_ROOT);
++	START_MAIN_ZABBIX_ENTRY(CONFIG_ALLOW_ROOT, CONFIG_FOREGROUND);
+ 
+ 	exit(SUCCEED);
+ }
+--- a/src/zabbix_proxy/proxy.c
++++ b/src/zabbix_proxy/proxy.c
+@@ -66,6 +66,7 @@
+ const char	*help_message[] = {
+ 	"Options:",
+ 	"  -c --config <file>              Absolute path to the configuration file",
++	"  -f --foreground                 Run in foreground",
+ 	"  -R --runtime-control <option>   Perform administrative functions",
+ 	"",
+ 	"Runtime control options:",
+@@ -83,6 +84,7 @@
+ static struct zbx_option	longopts[] =
+ {
+ 	{"config",		1,	NULL,	'c'},
++	{"foreground",  0,  NULL,   'f'},
+ 	{"runtime-control",	1,	NULL,	'R'},
+ 	{"help",		0,	NULL,	'h'},
+ 	{"version",		0,	NULL,	'V'},
+@@ -90,7 +92,7 @@
+ };
+ 
+ /* short options */
+-static char	shortopts[] = "c:n:hVR:";
++static char	shortopts[] = "c:n:hVfR:";
+ 
+ /* end of COMMAND LINE OPTIONS */
+ 
+@@ -195,6 +197,8 @@
+ /* zabbix server startup time */
+ int	CONFIG_SERVER_STARTUP_TIME	= 0;
+ 
++int CONFIG_FOREGROUND           = ZBX_RUN_FOREGROUND;
++
+ char	*CONFIG_LOAD_MODULE_PATH	= NULL;
+ char	**CONFIG_LOAD_MODULE		= NULL;
+ 
+@@ -538,6 +542,9 @@
+ 			case 'c':
+ 				CONFIG_FILE = zbx_strdup(CONFIG_FILE, zbx_optarg);
+ 				break;
++			case 'f':
++				CONFIG_FOREGROUND = ZBX_RUN_FOREGROUND;
++				break;
+ 			case 'R':
+ 				if (0 == strcmp(zbx_optarg, ZBX_CONFIG_CACHE_RELOAD))
+ 					task = ZBX_TASK_CONFIG_CACHE_RELOAD;
+@@ -577,7 +584,7 @@
+ 	init_ipmi_handler();
+ #endif
+ 
+-	return daemon_start(CONFIG_ALLOW_ROOT);
++	return daemon_start(CONFIG_ALLOW_ROOT, CONFIG_FOREGROUND);
+ }
+ 
+ int	MAIN_ZABBIX_ENTRY()
+--- a/src/zabbix_server/server.c
++++ b/src/zabbix_server/server.c
+@@ -72,6 +72,7 @@
+ const char	*help_message[] = {
+ 	"Options:",
+ 	"  -c --config <file>              Absolute path to the configuration file",
++	"  -f --foreground                 Run in foreground",
+ 	"  -n --new-nodeid <nodeid>        Convert database data to new nodeid",
+ 	"  -R --runtime-control <option>   Perform administrative functions",
+ 	"",
+@@ -90,6 +91,7 @@
+ static struct zbx_option	longopts[] =
+ {
+ 	{"config",		1,	NULL,	'c'},
++	{"foreground",	0,	NULL,	'f'},
+ 	{"new-nodeid",		1,	NULL,	'n'},
+ 	{"runtime-control",	1,	NULL,	'R'},
+ 	{"help",		0,	NULL,	'h'},
+@@ -98,7 +100,7 @@
+ };
+ 
+ /* short options */
+-static char	shortopts[] = "c:n:hVR:";
++static char	shortopts[] = "c:n:hfVR:";
+ 
+ /* end of COMMAND LINE OPTIONS */
+ 
+@@ -196,6 +198,8 @@
+ int	CONFIG_PROXYCONFIG_FREQUENCY	= 3600;	/* 1h */
+ int	CONFIG_PROXYDATA_FREQUENCY	= 1;	/* 1s */
+ 
++int	CONFIG_FOREGROUND			= ZBX_RUN_BACKGROUND;
++
+ char	*CONFIG_LOAD_MODULE_PATH	= NULL;
+ char	**CONFIG_LOAD_MODULE		= NULL;
+ 
+@@ -507,6 +511,9 @@
+ 			case 'c':
+ 				CONFIG_FILE = zbx_strdup(CONFIG_FILE, zbx_optarg);
+ 				break;
++			case 'f':
++				CONFIG_FOREGROUND = ZBX_RUN_FOREGROUND;
++				break;
+ 			case 'R':
+ 				if (0 == strcmp(zbx_optarg, ZBX_CONFIG_CACHE_RELOAD))
+ 					task = ZBX_TASK_CONFIG_CACHE_RELOAD;
+@@ -559,7 +566,7 @@
+ 			break;
+ 	}
+ 
+-	return daemon_start(CONFIG_ALLOW_ROOT);
++	return daemon_start(CONFIG_ALLOW_ROOT, CONFIG_FOREGROUND);
+ }
+ 
+ int	MAIN_ZABBIX_ENTRY()
+--- a/include/config.h.in
++++ b/include/config.h.in
+@@ -21,6 +21,9 @@
+ /* Define to 1 if you have the <conio.h> header file. */
+ #undef HAVE_CONIO_H
+ 
++/* Define to 1 if CoreOS features should be enabled. */
++#undef HAVE_COREOS
++
+ /* Define to 1 if you have the <ctype.h> header file. */
+ #undef HAVE_CTYPE_H
+ 
+--- a/src/libs/zbxsysinfo/linux/boottime.c
++++ b/src/libs/zbxsysinfo/linux/boottime.c
+@@ -27,7 +27,11 @@
+ 	int		ret = SYSINFO_RET_FAIL;
+ 	unsigned long	value;
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (f = fopen("/coreos/proc/stat", "r")))
++#else
+ 	if (NULL == (f = fopen("/proc/stat", "r")))
++#endif
+ 		return ret;
+ 
+ 	/* find boot time entry "btime [boot time]" */
+--- a/src/libs/zbxsysinfo/linux/cpu.c
++++ b/src/libs/zbxsysinfo/linux/cpu.c
+@@ -150,7 +150,11 @@
+ 	zbx_uint64_t	value = 0;
+ 	FILE		*f;
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (f = fopen("/coreos/proc/stat", "r")))
++#else
+ 	if (NULL == (f = fopen("/proc/stat", "r")))
++#endif
+ 		return SYSINFO_RET_FAIL;
+ 
+ 	while (NULL != fgets(line, sizeof(line), f))
+@@ -177,7 +181,11 @@
+ 	zbx_uint64_t	value = 0;
+ 	FILE		*f;
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (f = fopen("/coreos/proc/stat", "r")))
++#else
+ 	if (NULL == (f = fopen("/proc/stat", "r")))
++#endif
+ 		return SYSINFO_RET_FAIL;
+ 
+ 	while (NULL != fgets(line, sizeof(line), f))
+--- a/src/libs/zbxsysinfo/linux/diskio.c
++++ b/src/libs/zbxsysinfo/linux/diskio.c
+@@ -22,12 +22,20 @@
+ #include "stats.h"
+ #include "diskdevices.h"
+ 
++#ifdef HAVE_COREOS
++#define ZBX_DEV_PFX	"/coreos/dev/"
++#else
+ #define ZBX_DEV_PFX	"/dev/"
++#endif
+ #define ZBX_DEV_READ	0
+ #define ZBX_DEV_WRITE	1
+ 
+ #if defined(KERNEL_2_4)
++#ifdef HAVE_COREOS
++#	define INFO_FILE_NAME	"/coreos/proc/partitions"
++#else
+ #	define INFO_FILE_NAME	"/proc/partitions"
++#endif
+ #	define PARSE(line)	if (sscanf(line, ZBX_FS_UI64 ZBX_FS_UI64 " %*d %s " 		\
+ 					ZBX_FS_UI64 " %*d " ZBX_FS_UI64 " %*d "			\
+ 					ZBX_FS_UI64 " %*d " ZBX_FS_UI64 " %*d %*d %*d %*d",	\
+@@ -40,7 +48,11 @@
+ 				&ds[ZBX_DSTAT_W_SECT]						\
+ 				) != 7) continue
+ #else
++#ifdef HAVE_COREOS
++#	define INFO_FILE_NAME	"/coreos/proc/diskstats"
++#else
+ #	define INFO_FILE_NAME	"/proc/diskstats"
++#endif
+ #	define PARSE(line)	if (sscanf(line, ZBX_FS_UI64 ZBX_FS_UI64 " %s "			\
+ 					ZBX_FS_UI64 " %*d " ZBX_FS_UI64 " %*d "			\
+ 					ZBX_FS_UI64 " %*d " ZBX_FS_UI64 " %*d %*d %*d %*d",	\
+--- a/src/libs/zbxsysinfo/linux/diskspace.c
++++ b/src/libs/zbxsysinfo/linux/diskspace.c
+@@ -104,7 +104,11 @@
+ 
+ 	zbx_json_addarray(&j, ZBX_PROTO_TAG_DATA);
+ 
++#ifdef HAVE_COREOS
++	if (NULL != (f = fopen("/coreos/proc/1/mounts", "r")))
++#else
+ 	if (NULL != (f = fopen("/proc/mounts", "r")))
++#endif
+ 	{
+ 		while (NULL != fgets(line, sizeof(line), f))
+ 		{
+--- a/src/libs/zbxsysinfo/linux/hardware.h
++++ b/src/libs/zbxsysinfo/linux/hardware.h
+@@ -24,7 +24,11 @@
+ #define SMBIOS_STATUS_ERROR	2
+ #define SMBIOS_STATUS_OK	3
+ 
++#ifdef HAVE_COREOS
++#define DEV_MEM			"/coreos/dev/mem"
++#else
+ #define DEV_MEM			"/dev/mem"
++#endif
+ #define SMBIOS_ENTRY_POINT_SIZE	0x20
+ #define DMI_HEADER_SIZE		4
+ 
+@@ -36,9 +40,16 @@
+ #define DMI_GET_MODEL		0x04
+ #define DMI_GET_SERIAL		0x08
+ 
++#ifdef HAVE_COREOS
++#define CPU_MAX_FREQ_FILE	"/coreos/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
++#else
+ #define CPU_MAX_FREQ_FILE	"/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
+-
++#endif
++#ifdef HAVE_COREOS
++#define HW_CPU_INFO_FILE	"/coreos/proc/cpuinfo"
++#else
+ #define HW_CPU_INFO_FILE	"/proc/cpuinfo"
++#endif
+ #define HW_CPU_ALL_CPUS		-1
+ #define HW_CPU_SHOW_ALL		1
+ #define HW_CPU_SHOW_MAXFREQ	2
+--- a/src/libs/zbxsysinfo/linux/kernel.c
++++ b/src/libs/zbxsysinfo/linux/kernel.c
+@@ -44,7 +44,11 @@
+ 	int		ret = SYSINFO_RET_FAIL;
+ 	zbx_uint64_t	value;
+ 
++#ifdef HAVE_COREOS
++	if (SYSINFO_RET_OK == read_uint64_from_procfs("/coreos/proc/sys/fs/file-max", &value))
++#else
+ 	if (SYSINFO_RET_OK == read_uint64_from_procfs("/proc/sys/fs/file-max", &value))
++#endif
+ 	{
+ 		SET_UI64_RESULT(result, value);
+ 		ret = SYSINFO_RET_OK;
+@@ -58,7 +62,11 @@
+ 	int		ret = SYSINFO_RET_FAIL;
+ 	zbx_uint64_t	value;
+ 
++#ifdef HAVE_COREOS
++	if (SYSINFO_RET_OK == read_uint64_from_procfs("/coreos/proc/sys/kernel/pid_max", &value))
++#else
+ 	if (SYSINFO_RET_OK == read_uint64_from_procfs("/proc/sys/kernel/pid_max", &value))
++#endif
+ 	{
+ 		SET_UI64_RESULT(result, value);
+ 		ret = SYSINFO_RET_OK;
+--- a/src/libs/zbxsysinfo/linux/memory.c
++++ b/src/libs/zbxsysinfo/linux/memory.c
+@@ -62,7 +62,11 @@
+ 	char		*t, c[MAX_STRING_LEN];
+ 	zbx_uint64_t	res = 0;
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (f = fopen("/coreos/proc/meminfo", "r")))
++#else
+ 	if (NULL == (f = fopen("/proc/meminfo", "r")))
++#endif
+ 		return SYSINFO_RET_FAIL;
+ 
+ 	while (NULL != fgets(c, sizeof(c), f))
+--- a/src/libs/zbxsysinfo/linux/net.c
++++ b/src/libs/zbxsysinfo/linux/net.c
+@@ -44,7 +44,11 @@
+ 	if (NULL == if_name || '\0' == *if_name)
+ 		return SYSINFO_RET_FAIL;
+ 
++#ifdef HAVE_COREOS
++	if (NULL != (f = fopen("/coreos/proc/1/net/dev", "r")))
++#else
+ 	if (NULL != (f = fopen("/proc/net/dev", "r")))
++#endif
+ 	{
+ 		while (NULL != fgets(line, sizeof(line), f))
+ 		{
+@@ -246,7 +250,11 @@
+ 
+ 	zbx_json_addarray(&j, ZBX_PROTO_TAG_DATA);
+ 
++#ifdef HAVE_COREOS
++	if (NULL != (f = fopen("/coreos/proc/1/net/dev", "r")))
++#else
+ 	if (NULL != (f = fopen("/proc/net/dev", "r")))
++#endif
+ 	{
+ 		while (NULL != fgets(line, sizeof(line), f))
+ 		{
+@@ -295,7 +303,11 @@
+ 
+ 	buffer = zbx_malloc(NULL, buffer_alloc);
+ 
++#ifdef HAVE_COREOS
++	if (0 < (n = proc_read_file("/coreos/proc/1/net/tcp", &buffer, &buffer_alloc)))
++#else
+ 	if (0 < (n = proc_read_file("/proc/net/tcp", &buffer, &buffer_alloc)))
++#endif
+ 	{
+ 		ret = SYSINFO_RET_OK;
+ 
+@@ -310,7 +322,11 @@
+ 		}
+ 	}
+ 
++#ifdef HAVE_COREOS
++	if (0 < (n = proc_read_file("/coreos/proc/1/net/tcp6", &buffer, &buffer_alloc)))
++#else
+ 	if (0 < (n = proc_read_file("/proc/net/tcp6", &buffer, &buffer_alloc)))
++#endif
+ 	{
+ 		ret = SYSINFO_RET_OK;
+ 
+@@ -347,7 +363,11 @@
+ 
+ 	buffer = zbx_malloc(NULL, buffer_alloc);
+ 
++#ifdef HAVE_COREOS
++	if (0 < (n = proc_read_file("/coreos/proc/1/net/udp", &buffer, &buffer_alloc)))
++#else
+ 	if (0 < (n = proc_read_file("/proc/net/udp", &buffer, &buffer_alloc)))
++#endif
+ 	{
+ 		ret = SYSINFO_RET_OK;
+ 
+@@ -362,7 +382,11 @@
+ 		}
+ 	}
+ 
++#ifdef HAVE_COREOS
++	if (0 < (n = proc_read_file("/coreos/proc/1/net/udp6", &buffer, &buffer_alloc)))
++#else
+ 	if (0 < (n = proc_read_file("/proc/net/udp6", &buffer, &buffer_alloc)))
++#endif
+ 	{
+ 		ret = SYSINFO_RET_OK;
+ 
+--- a/src/libs/zbxsysinfo/linux/proc.c
++++ b/src/libs/zbxsysinfo/linux/proc.c
+@@ -240,7 +240,11 @@
+ 
+ 	proccomm = get_rparam(request, 3);
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (dir = opendir("/coreos/proc")))
++#else
+ 	if (NULL == (dir = opendir("/proc")))
++#endif
+ 		return SYSINFO_RET_FAIL;
+ 
+ 	while (NULL != (entries = readdir(dir)))
+@@ -253,12 +257,19 @@
+ 		if (0 == strncmp(entries->d_name, "self", MAX_STRING_LEN))
+ 			continue;
+ 
++#ifdef HAVE_COREOS
++		zbx_snprintf(tmp, sizeof(tmp), "/coreos/proc/%s/cmdline", entries->d_name);
++#else
+ 		zbx_snprintf(tmp, sizeof(tmp), "/proc/%s/cmdline", entries->d_name);
+-
++#endif
+ 		if (NULL == (f_cmd = fopen(tmp, "r")))
+ 			continue;
+ 
++#ifdef HAVE_COREOS
++		zbx_snprintf(tmp, sizeof(tmp), "/coreos/proc/%s/status", entries->d_name);
++#else
+ 		zbx_snprintf(tmp, sizeof(tmp), "/proc/%s/status", entries->d_name);
++#endif
+ 
+ 		if (NULL == (f_stat = fopen(tmp, "r")))
+ 			continue;
+@@ -366,7 +377,11 @@
+ 
+ 	proccomm = get_rparam(request, 3);
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (dir = opendir("/coreos/proc")))
++#else
+ 	if (NULL == (dir = opendir("/proc")))
++#endif
+ 		return SYSINFO_RET_FAIL;
+ 
+ 	while (NULL != (entries = readdir(dir)))
+@@ -379,13 +394,19 @@
+ 		if (0 == strncmp(entries->d_name, "self", MAX_STRING_LEN))
+ 			continue;
+ 
++#ifdef HAVE_COREOS
++		zbx_snprintf(tmp, sizeof(tmp), "/coreos/proc/%s/cmdline", entries->d_name);
++#else
+ 		zbx_snprintf(tmp, sizeof(tmp), "/proc/%s/cmdline", entries->d_name);
+-
++#endif
+ 		if (NULL == (f_cmd = fopen(tmp, "r")))
+ 			continue;
+ 
++#ifdef HAVE_COREOS
++		zbx_snprintf(tmp, sizeof(tmp), "/coreos/proc/%s/status", entries->d_name);
++#else
+ 		zbx_snprintf(tmp, sizeof(tmp), "/proc/%s/status", entries->d_name);
+-
++#endif
+ 		if (NULL == (f_stat = fopen(tmp, "r")))
+ 			continue;
+ 
+--- a/src/libs/zbxsysinfo/linux/sensors.c
++++ b/src/libs/zbxsysinfo/linux/sensors.c
+@@ -26,10 +26,18 @@
+ #define DO_MIN	3
+ 
+ #if defined(KERNEL_2_4)
++#ifdef HAVE_COREOS
++#define DEVICE_DIR	"/coreos/proc/sys/dev/sensors"
++#else
+ #define DEVICE_DIR	"/proc/sys/dev/sensors"
++#endif
++#else
++#ifdef HAVE_COREOS
++#define DEVICE_DIR	"/coreos/sys/class/hwmon"
+ #else
+ #define DEVICE_DIR	"/sys/class/hwmon"
+ #endif
++#endif
+ 
+ #define ATTR_MAX	128
+ 
+@@ -175,8 +183,11 @@
+ 		}
+ 		else
+ 		{
++#ifdef HAVE_COREOS
++			zbx_snprintf(bus_path, sizeof(bus_path), "/coreos/sys/class/i2c-adapter/i2c-%d/device", bus_i2c);
++#else
+ 			zbx_snprintf(bus_path, sizeof(bus_path), "/sys/class/i2c-adapter/i2c-%d/device", bus_i2c);
+-
++#endif
+ 			if (NULL != (bus_attr = sysfs_read_attr(bus_path)))
+ 			{
+ 				if (0 != strncmp(bus_attr, "ISA ", 4))
+--- a/src/libs/zbxsysinfo/linux/swap.c
++++ b/src/libs/zbxsysinfo/linux/swap.c
+@@ -65,7 +65,11 @@
+ swap_stat_t;
+ 
+ #ifdef KERNEL_2_4
++#ifdef HAVE_COREOS
++#	define INFO_FILE_NAME	"/coreos/proc/partitions"
++#else
+ #	define INFO_FILE_NAME	"/proc/partitions"
++#endif
+ #	define PARSE(line)								\
+ 											\
+ 		if (6 != sscanf(line, "%d %d %*d %*s "					\
+@@ -79,7 +83,11 @@
+ 				&result->wsect		/* wsect */			\
+ 				)) continue
+ #else
++#ifdef HAVE_COREOS
++#	define INFO_FILE_NAME	"/coreos/proc/diskstats"
++#else
+ #	define INFO_FILE_NAME	"/proc/diskstats"
++#endif
+ #	define PARSE(line)								\
+ 											\
+ 		if (6 != sscanf(line, "%d %d %*s "					\
+@@ -145,10 +153,19 @@
+ 	FILE	*f;
+ 
+ #ifdef KERNEL_2_4
++#ifdef HAVE_COREOS
++	if (NULL != (f = fopen("/coreos/proc/stat", "r")))
++#else
+ 	if (NULL != (f = fopen("/proc/stat", "r")))
++#endif
++}
++#else
++#ifdef HAVE_COREOS
++	if (NULL != (f = fopen("/coreos/proc/vmstat", "r")))
+ #else
+ 	if (NULL != (f = fopen("/proc/vmstat", "r")))
+ #endif
++#endif
+ 	{
+ 		while (NULL != fgets(line, sizeof(line), f))
+ 		{
+@@ -202,15 +219,27 @@
+ 		ret = get_swap_pages(result);
+ 		swapdev = NULL;
+ 	}
++#ifdef HAVE_COREOS
++        else if (0 != strncmp(swapdev, "/coreos/dev/", 5))
++#else
+ 	else if (0 != strncmp(swapdev, "/dev/", 5))
++#endif
+ 		offset = 5;
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (f = fopen("/coreos/proc/swaps", "r")))
++#else
+ 	if (NULL == (f = fopen("/proc/swaps", "r")))
++#endif
+ 		return ret;
+ 
+ 	while (NULL != fgets(line, sizeof(line), f))
+ 	{
++#ifdef HAVE_COREOS
++                if (0 != strncmp(line, "/coreos/dev/", 5))
++#else
+ 		if (0 != strncmp(line, "/dev/", 5))
++#endif
+ 			continue;
+ 
+ 		if (NULL == (s = strchr(line, ' ')))
+--- a/src/zabbix_agent/cpustat.c
++++ b/src/zabbix_agent/cpustat.c
+@@ -266,7 +266,11 @@
+ 	FILE		*file;
+ 	char		line[1024];
+ 	unsigned char	*cpu_status = NULL;
+-	const char	*filename = "/proc/stat";
++#ifdef HAVE_COREOS
++	const char	*filename = "/coreos/proc/stat";
++#else
++	const char  *filename = "/proc/stat";
++#endif
+ 
+ #elif defined(HAVE_SYS_PSTAT_H)
+ 
+--- a/src/zabbix_agent/stats.c
++++ b/src/zabbix_agent/stats.c
+@@ -97,7 +97,11 @@
+ 	FILE	*f = NULL;
+ 	int	ncpu = 0;
+ 
++#ifdef HAVE_COREOS
++	if (NULL == (file = fopen("/coreos/proc/cpuinfo", "r")))
++#else
+ 	if (NULL == (file = fopen("/proc/cpuinfo", "r")))
++#endif
+ 		goto return_one;
+ 
+ 	while (NULL != fgets(line, 1024, file))
+--- a/src/libs/zbxsysinfo/linux/software.h
++++ b/src/libs/zbxsysinfo/linux/software.h
+@@ -20,9 +20,15 @@
+ #ifndef ZABBIX_SOFTWARE_H
+ #define ZABBIX_SOFTWARE_H
+ 
+-#define SW_OS_FULL	"/proc/version"
++#ifdef HAVE_COREOS
++#define SW_OS_FULL	"/coreos/proc/version"
++#define SW_OS_SHORT     "/coreos/proc/version_signature"
++#define SW_OS_NAME      "/coreos/etc/issue.net"
++#else
++#define SW_OS_FULL      "/proc/version"
+ #define SW_OS_SHORT	"/proc/version_signature"
+ #define SW_OS_NAME	"/etc/issue.net"
++#endif
+ 
+ typedef struct
+ {
+--- a/configure.ac
++++ b/configure.ac
+@@ -1050,6 +1050,14 @@
+ esac],
+ [ipv6=no])
+ 
++AC_ARG_ENABLE(coreos, [  --enable-coreos         Turn on support of CoreOS],
++[case "${enableval}" in
++  yes) coreos=yes ;;
++  no)  coreos=no ;;
++  *) AC_MSG_ERROR([bad value ${enableval} for --enable-coreos]) ;;
++esac],
++[ipv6=no])
++
+ have_db="no"
+ have_unixodbc="no"
+ have_web_monitoring="no"
+@@ -1057,6 +1065,7 @@
+ have_snmp="no"
+ have_ipmi="no"
+ have_ipv6="no"
++have_coreos="no"
+ have_ssh2="no"
+ 
+ if test "x$ipv6" = "xyes"; then
+@@ -1064,6 +1073,11 @@
+ 	have_ipv6="yes"
+ fi
+ 
++if test "x$coreos" = "xyes"; then
++  AC_DEFINE(HAVE_COREOS,1,[Define to 1 if CoreOS features should be enabled.])
++  have_coreos="yes"
++fi
++
+ if test "x$server" = "xyes" || test "x$proxy" = "xyes"; then
+ 
+ 	have_multirow_insert="no"
