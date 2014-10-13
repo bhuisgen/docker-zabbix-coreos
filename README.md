@@ -21,4 +21,4 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
     # docker run -d -p 10050:10050 \
         -v /proc:/coreos/proc -v /sys:/coreos/sys -v /dev:/coreos/dev
         -v /var/run/docker.sock:/coreos/var/run/docker.sock
-        --name zabbix bhuisgen/zabbix-agent
+        --name zabbix-agent bhuisgen/zabbix-agent
