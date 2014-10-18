@@ -4,9 +4,9 @@ This Docker container provides a patched Zabbix agent to monitor a real CoreOS s
 
 The Zabbix agent has been patched to read system informations from these directories:
 
-* */coreos/proc* which is a mapping of */proc* from the real host 
-* */coreos/dev* which is a mapping of */dev* from the real host 
-* */coreos/sys* which is a mapping of */sys* from the real host 
+* */coreos/proc* mapped from */proc* on the real host
+* */coreos/dev* mapped from */dev* on the real host
+* */coreos/sys* mapped from */sys* on the real host
 
 You can access the Docker REST API through the socket file */coreos/var/run/docker.sock*
 
@@ -19,6 +19,11 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
 ### Run the container
 
     # docker run -d -p 10050:10050 \
-        -v /proc:/coreos/proc -v /sys:/coreos/sys -v /dev:/coreos/dev
+        -v /proc:/coreos/proc -v /sys:/coreos/sys -v /dev:/coreos/dev \
         -v /var/run/docker.sock:/coreos/var/run/docker.sock
-        --name zabbix-agent bhuisgen/zabbix-agent
+        --name zabbix-agent bhuisgen/zabbix-agent <HOSTNAME> <SERVER_IP>
+
+The needed arguments are:
+* *HOSTNAME*: name of the host declared in the Zabbix frontend
+* *SERVER*: IP address of the Zabbix server
+
