@@ -14,16 +14,15 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
 
 ### Build the image
 
-    # docker build -t bhuisgen/zabbix-agent .
+    # docker build -t bhuisgen/zabbix-coreos .
 
 ### Run the container
 
     # docker run -d -p 10050:10050 \
         -v /proc:/coreos/proc -v /sys:/coreos/sys -v /dev:/coreos/dev \
         -v /var/run/docker.sock:/coreos/var/run/docker.sock
-        --name zabbix-agent bhuisgen/zabbix-agent <HOSTNAME> <SERVER_IP>
+        --name zabbix-coreos bhuisgen/zabbix-coreos <HOSTNAME> <SERVER_IP>
 
 The needed arguments are:
 * *HOSTNAME*: name of the host declared in the Zabbix frontend
 * *SERVER*: IP address of the Zabbix server
-
