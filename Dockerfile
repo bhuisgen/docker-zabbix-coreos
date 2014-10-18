@@ -1,5 +1,5 @@
 FROM debian:sid
-MAINTAINER Boris HUISGEN "bhuisgen@hbis.fr"
+MAINTAINER Boris HUISGEN <bhuisgen@hbis.fr>
 
 ENV DEBIAN_FRONTEND noninteractive
 
