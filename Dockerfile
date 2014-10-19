@@ -17,6 +17,7 @@ COPY etc/zabbix/zabbix_agentd.conf /etc/zabbix/zabbix_agentd.conf
 COPY run.sh /
 RUN chmod +x /run.sh
 
+VOLUME  ["/etc/zabbix"]
 EXPOSE 10050
 ENTRYPOINT ["/run.sh"]
 CMD [""]

@@ -24,5 +24,13 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
         --name zabbix-coreos bhuisgen/docker-zabbix-coreos <HOSTNAME> <SERVER_IP>
 
 The needed arguments are:
+
 * *HOSTNAME*: name of the host declared in the Zabbix frontend
 * *SERVER*: IP address of the Zabbix server
+
+### Modify the agent configuration files
+
+    # docker run --rm --volumes-from zabbix-coreos -t -i busybox sh
+    # cd /etc/zabbix
+
+You can modify the agent configuration files and restart the container to apply modifications.
