@@ -1,0 +1,12 @@
+[Unit]
+Description=zabbix-agent
+Requires=docker.service
+After=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker kill zabbix-agent
+ExecStartPre=-/usr/bin/docker rm zabbix-agent
+ExecStartPre=/usr/bin/docker pull bhuisgen/docker-zabbix-coreos:latest
+ExecStart=/usr/bin/docker run --name zabbix-agent -p 10050:10050 -v /var/run/docker.sock:/coreos/var/run/docker.sock -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro --restart=always bhuisgen/docker-zabbix-coreos:latest coreos1 1.2.3.4
+ExecStop=/usr/bin/docker stop zabbix-agent
+TimeoutStartSec=300
