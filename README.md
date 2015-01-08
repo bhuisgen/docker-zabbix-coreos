@@ -30,7 +30,8 @@ The needed arguments are:
 
 ### Modify the agent configuration files
 
-    # docker run --rm --volumes-from zabbix-coreos -t -i busybox sh
-    # cd /etc/zabbix
+    # docker exec -ti zabbix-coreos /bin/bash
 
-You can modify the agent configuration files and restart the container to apply modifications.
+### Restarting the agent
+
+    # supervisorctl restart zabbix
