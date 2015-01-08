@@ -1,0 +1,19 @@
+#!/bin/sh
+
+DOCKER_SOCKET=/var/run/docker.sock
+
+CONFIG_FILE=/etc/zabbix/scripts/trapper/docker.conf
+
+[ -r "$CONFIG_FILE" ] && . $CONFIG_FILE
+
+CTS=$(echo "GET /containers/json?all=1 HTTP/1.0\r\n"|sudo netcat -U $DOCKER_SOCKET|sed '/^HTTP\/1.. 200 OK\r$/,/^\r$/d')
+LEN=$(echo $CTS|jq 'length')
+
+for I in `seq 0 $(($LEN-1))`
+do
+    NAME=$(echo $CTS|jq ".[$I].Names[0]"|sed -e 's/^"\//"/')
+
+    DATA="$DATA,"'{"{#NAME}":'$NAME'}'
+done
+
+echo '{"data":['${DATA#,}']}'
