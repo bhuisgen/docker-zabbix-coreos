@@ -34,4 +34,4 @@ The needed arguments are:
 
 ### Restarting the agent
 
-    # supervisorctl restart zabbix
+    # supervisorctl restart zabbix-agent
