@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2015-01-12T10:12:30Z</date>
+    <date>2015-04-24T23:06:29Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -22,6 +22,94 @@
                 </application>
             </applications>
             <items>
+                <item>
+                    <name>Etcd client port status</name>
+                    <type>7</type>
+                    <snmp_community/>
+                    <multiplier>0</multiplier>
+                    <snmp_oid/>
+                    <key>net.tcp.service[tcp,{$COREOS.ETCD_CLIENT_SERVICE_IP},{$COREOS.ETCD_CLIENT_SERVICE_PORT}]</key>
+                    <delay>60</delay>
+                    <history>7</history>
+                    <trends>365</trends>
+                    <status>0</status>
+                    <value_type>3</value_type>
+                    <allowed_hosts/>
+                    <units/>
+                    <delta>0</delta>
+                    <snmpv3_contextname/>
+                    <snmpv3_securityname/>
+                    <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                    <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                    <snmpv3_authpassphrase/>
+                    <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                    <snmpv3_privpassphrase/>
+                    <formula>1</formula>
+                    <delay_flex/>
+                    <params/>
+                    <ipmi_sensor/>
+                    <data_type>0</data_type>
+                    <authtype>0</authtype>
+                    <username/>
+                    <password/>
+                    <publickey/>
+                    <privatekey/>
+                    <port/>
+                    <description/>
+                    <inventory_link>0</inventory_link>
+                    <applications>
+                        <application>
+                            <name>CoreOS</name>
+                        </application>
+                    </applications>
+                    <valuemap>
+                        <name>Service state</name>
+                    </valuemap>
+                </item>
+                <item>
+                    <name>Etcd server port status</name>
+                    <type>7</type>
+                    <snmp_community/>
+                    <multiplier>0</multiplier>
+                    <snmp_oid/>
+                    <key>net.tcp.service[tcp,{$COREOS.ETCD_SERVER_SERVICE_IP},{$COREOS.ETCD_SERVER_SERVICE_PORT}]</key>
+                    <delay>60</delay>
+                    <history>7</history>
+                    <trends>365</trends>
+                    <status>0</status>
+                    <value_type>3</value_type>
+                    <allowed_hosts/>
+                    <units/>
+                    <delta>0</delta>
+                    <snmpv3_contextname/>
+                    <snmpv3_securityname/>
+                    <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                    <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                    <snmpv3_authpassphrase/>
+                    <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                    <snmpv3_privpassphrase/>
+                    <formula>1</formula>
+                    <delay_flex/>
+                    <params/>
+                    <ipmi_sensor/>
+                    <data_type>0</data_type>
+                    <authtype>0</authtype>
+                    <username/>
+                    <password/>
+                    <publickey/>
+                    <privatekey/>
+                    <port/>
+                    <description/>
+                    <inventory_link>0</inventory_link>
+                    <applications>
+                        <application>
+                            <name>CoreOS</name>
+                        </application>
+                    </applications>
+                    <valuemap>
+                        <name>Service state</name>
+                    </valuemap>
+                </item>
                 <item>
                     <name>Memory used by processes $1</name>
                     <type>7</type>
@@ -154,7 +242,7 @@
                     <snmp_community/>
                     <multiplier>0</multiplier>
                     <snmp_oid/>
-                    <key>proc.num[fleetd]</key>
+                    <key>proc.num[update_engine]</key>
                     <delay>60</delay>
                     <history>7</history>
                     <trends>365</trends>
@@ -200,7 +288,7 @@
                     <delay>60</delay>
                     <history>7</history>
                     <trends>365</trends>
-                    <status>1</status>
+                    <status>0</status>
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units/>
@@ -238,11 +326,11 @@
                     <snmp_community/>
                     <multiplier>0</multiplier>
                     <snmp_oid/>
-                    <key>proc.num[update_engine]</key>
+                    <key>proc.num[fleetd]</key>
                     <delay>60</delay>
                     <history>7</history>
                     <trends>365</trends>
-                    <status>1</status>
+                    <status>0</status>
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units/>
@@ -276,18 +364,59 @@
                 </item>
             </items>
             <discovery_rules/>
-            <macros/>
+            <macros>
+                <macro>
+                    <macro>{$COREOS.AUTOUPDATE}</macro>
+                    <value>1</value>
+                </macro>
+                <macro>
+                    <macro>{$COREOS.ETCD_CLIENT_SERVICE_IP}</macro>
+                    <value>127.0.0.1</value>
+                </macro>
+                <macro>
+                    <macro>{$COREOS.ETCD_CLIENT_SERVICE_PORT}</macro>
+                    <value>4001</value>
+                </macro>
+                <macro>
+                    <macro>{$COREOS.ETCD_SERVER_SERVICE_IP}</macro>
+                    <value>127.0.0.1</value>
+                </macro>
+                <macro>
+                    <macro>{$COREOS.ETCD_SERVER_SERVICE_PORT}</macro>
+                    <value>7001</value>
+                </macro>
+            </macros>
             <templates/>
             <screens/>
         </template>
     </templates>
     <triggers>
         <trigger>
+            <expression>{Custom Template CoreOS:net.tcp.service[tcp,{$COREOS.ETCD_CLIENT_SERVICE_IP},{$COREOS.ETCD_CLIENT_SERVICE_PORT}].last()}=0</expression>
+            <name>Etcd client service is down on {HOST.NAME}</name>
+            <url/>
+            <status>0</status>
+            <priority>4</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
             <expression>{Custom Template CoreOS:proc.num[etcd].last()}=0</expression>
             <name>Etcd is not running on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>5</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Custom Template CoreOS:net.tcp.service[tcp,{$COREOS.ETCD_SERVER_SERVICE_IP},{$COREOS.ETCD_SERVER_SERVICE_PORT}].last()}=0</expression>
+            <name>Etcd server service is down on {HOST.NAME}</name>
+            <url/>
+            <status>0</status>
+            <priority>4</priority>
             <description/>
             <type>0</type>
             <dependencies/>
@@ -303,7 +432,7 @@
             <dependencies/>
         </trigger>
         <trigger>
-            <expression>{Custom Template CoreOS:proc.num[locksmithd].last()}=0</expression>
+            <expression>({Custom Template CoreOS:proc.num[locksmithd].last()}=0)&amp;({$COREOS.AUTOUPDATE}=1)</expression>
             <name>Locksmith is not running on {HOST.NAME}</name>
             <url/>
             <status>0</status>
@@ -313,8 +442,28 @@
             <dependencies/>
         </trigger>
         <trigger>
-            <expression>{Custom Template CoreOS:proc.num[update_engine].last()}=0</expression>
+            <expression>({Custom Template CoreOS:proc.num[locksmithd].last()}#0)&amp;({$COREOS.AUTOUPDATE}=0)</expression>
+            <name>Locksmith is running on {HOST.NAME}</name>
+            <url/>
+            <status>0</status>
+            <priority>5</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>({Custom Template CoreOS:proc.num[update_engine].last()}=0)&amp;({$COREOS.AUTOUPDATE}=1)</expression>
             <name>Update engine is not running on {HOST.NAME}</name>
+            <url/>
+            <status>0</status>
+            <priority>5</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>({Custom Template CoreOS:proc.num[update_engine].last()}#0)&amp;({$COREOS.AUTOUPDATE}=0)</expression>
+            <name>Update engine is running on {HOST.NAME}</name>
             <url/>
             <status>0</status>
             <priority>5</priority>
