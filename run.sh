@@ -20,4 +20,7 @@ sed -i "s/^Hostname\=.*/Hostname\=$HOSTNAME/" /etc/zabbix/zabbix_agentd.conf
 sed -i "s/^Server\=.*/Server\=$SERVER/" /etc/zabbix/zabbix_agentd.conf
 sed -i "s/^ServerActive\=.*/ServerActive\=$SERVER/" /etc/zabbix/zabbix_agentd.conf
 
+touch /var/spool/cron/crontabs/zabbix
+touch /etc/crontab
+
 exec /usr/bin/supervisord
