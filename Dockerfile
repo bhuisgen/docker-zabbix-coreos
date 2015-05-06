@@ -22,11 +22,11 @@ COPY files/zabbix-agent_2.2.7+dfsg-1.1_amd64.deb /root/
 RUN apt-get -y install --no-install-recommends pciutils libcurl3-gnutls libldap-2.4-2 cron curl jq netcat-openbsd sudo vim
 RUN dpkg -i /root/zabbix-agent_2.2.7+dfsg-1.1_amd64.deb
 COPY etc/zabbix/ /etc/zabbix/
+RUN mkdir -p /var/lib/zabbix && chmod 700 /var/lib/zabbix && chown zabbix:zabbix /var/lib/zabbix && usermod -d /var/lib/zabbix zabbix && usermod -a -G adm zabbix
 COPY etc/sudoers.d/zabbix etc/sudoers.d/zabbix
 RUN chmod 400 /etc/sudoers.d/zabbix
 COPY etc/zabbix/crontab /var/spool/cron/crontabs/zabbix
-RUN chmod 600 /var/spool/cron/crontabs/zabbix
-RUN chown zabbix:crontab /var/spool/cron/crontabs/zabbix
+RUN chmod 600 /var/spool/cron/crontabs/zabbix && chown zabbix:crontab /var/spool/cron/crontabs/zabbix
 
 COPY run.sh /
 RUN chmod +x /run.sh
