@@ -13,7 +13,9 @@ if [ -z "$SERVER" ]; then
     exit 1
 fi
 
-mkdir -p /coreos/{proc,dev,sys}
+mkdir -p /coreos/proc
+mkdir -p /coreos/dev
+mkdir -p /coreos/sys
 mkdir -p /coreos/var/run/
 
 sed -i "s/^Hostname\=.*/Hostname\=$HOSTNAME/" /etc/zabbix/zabbix_agentd.conf
