@@ -15,16 +15,7 @@ RUN apt-get update && apt-get -y install ucf procps iproute
 RUN apt-get update && apt-get -y install supervisor
 COPY etc/supervisor/ /etc/supervisor/
 
-RUN apt-get update && apt-get -y install --no-install-recommends \
-    cron \
-    curl \
-    jq \
-    libcurl3-gnutls \
-    libldap-2.4-2 \
-    netcat-openbsd \
-    pciutils \
-    sudo \
-    vim
+RUN apt-get update && apt-get -y install --no-install-recommends cron curl jq libcurl3-gnutls libldap-2.4-2 netcat-openbsd pciutils sudo vim
 
 COPY files/zabbix-agent_2.2.7+dfsg-1.1_amd64.deb /root/
 RUN dpkg -i /root/zabbix-agent_2.2.7+dfsg-1.1_amd64.deb
