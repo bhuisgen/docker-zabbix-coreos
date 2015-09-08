@@ -6,14 +6,14 @@ DOCKER_SOCKET=/var/run/docker.sock
 while getopts hs: OPT; do
     case "$OPT" in
         h)
-            echo $USAGE
+            echo "$USAGE"
             exit 0
             ;;
         s)
             DOCKER_SOCKET=$OPTARG
             ;;
         \?)
-            echo $USAGE >&2
+            echo "$USAGE" >&2
             exit 1
             ;;
     esac
@@ -59,4 +59,8 @@ do
             echo "- docker.top.command[$NAME,$PID] \"$COMMAND\""
         done
     fi
+
+    #if [ "$RUNNING" = "true" ]; then
+    #    STREAM=$(echo -e "GET /containers/monitoring/stats?stream=false HTTP/1.0\r\n"|netcat -U /coreos/var/run/docker.sock|tail -n +5|while read -r line; do echo "$line" && exit; done)
+    #fi
 done

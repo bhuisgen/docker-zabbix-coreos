@@ -28,7 +28,4 @@ if [ -f "/etc/zabbix/$HOST.conf" ]; then
     cat "/etc/zabbix/$HOST.conf" >> /etc/zabbix/zabbix_agentd.conf
 fi
 
-touch /var/spool/cron/crontabs/zabbix
-touch /etc/crontab
-
 exec /usr/bin/supervisord

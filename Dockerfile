@@ -13,6 +13,7 @@ RUN apt-get update && \
 ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
+ENV TERM xterm
 
 RUN apt-get update && \
     apt-get -y install \
@@ -24,7 +25,6 @@ COPY etc/supervisor/ /etc/supervisor/
 
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
-        cron \
         curl \
         jq \
         libcurl3-gnutls \
@@ -45,10 +45,6 @@ RUN mkdir -p /var/lib/zabbix && \
 
 COPY etc/sudoers.d/zabbix etc/sudoers.d/zabbix
 RUN chmod 400 /etc/sudoers.d/zabbix
-
-COPY etc/zabbix/crontab /var/spool/cron/crontabs/zabbix
-RUN chmod 600 /var/spool/cron/crontabs/zabbix && \
-    chown zabbix:crontab /var/spool/cron/crontabs/zabbix
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
