@@ -1,29 +1,31 @@
 #!/bin/sh
 
-HOSTNAME="$1"
-SERVER="$2"
-
-if [ -z "$HOSTNAME" ]; then
-    echo "Hostname is missing"
-    exit 1
-fi
+SERVER="$1"
+METADATA="$2"
+HOST="$3"
 
 if [ -z "$SERVER" ]; then
-    echo "Server is missing"
+    echo "Server address is missing"
     exit 1
 fi
 
-mkdir -p /coreos/proc
-mkdir -p /coreos/dev
-mkdir -p /coreos/sys
-mkdir -p /coreos/var/run/
+if [ -z "$METADATA" ]; then
+    echo "Host metadata is missing"
+    exit 1
+fi
 
-sed -i "s/^Hostname\=.*/Hostname\=$HOSTNAME/" /etc/zabbix/zabbix_agentd.conf
+if [ -z "$HOST" ]; then
+    MACHINEID=$(cat /etc/machine-id)
+    HOST="$METADATA-$MACHINEID"
+fi
+
 sed -i "s/^Server\=.*/Server\=$SERVER/" /etc/zabbix/zabbix_agentd.conf
 sed -i "s/^ServerActive\=.*/ServerActive\=$SERVER/" /etc/zabbix/zabbix_agentd.conf
+sed -i "s/^Hostname\=.*/Hostname\=$HOST/" /etc/zabbix/zabbix_agentd.conf
+sed -i "s/^HostMetadata\=.*/HostMetadata\=$METADATA/" /etc/zabbix/zabbix_agentd.conf
 
-if [ -f "/etc/zabbix/$HOSTNAME.conf" ]; then
-    cat "/etc/zabbix/$HOSTNAME.conf" >> /etc/zabbix/zabbix_agentd.conf
+if [ -f "/etc/zabbix/$HOST.conf" ]; then
+    cat "/etc/zabbix/$HOST.conf" >> /etc/zabbix/zabbix_agentd.conf
 fi
 
 touch /var/spool/cron/crontabs/zabbix

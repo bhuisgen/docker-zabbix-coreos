@@ -1,0 +1,2 @@
+SERVER=server.my.domain
+HOSTMETADATA=mycluster
