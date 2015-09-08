@@ -20,7 +20,7 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
 
 #### Manual registration
 
-Create a host with the DNS host or the real IP address of the CoreOS node.
+Create a host with the DNS host or the IP address of the node.
 
 #### Auto-registration
 
@@ -71,6 +71,8 @@ You can start the agent on all your cluster nodes with fleet:
     # fleetctl submit zabbix-agent
     # fleetctl start zabbix-agent
 
+If you don't want to use auto-registration, create your service unit file. You can use the template in *files/systemd*.
+
 ### FAQ
 
 #### What is the machine id of my host ?
@@ -81,18 +83,27 @@ You can start the agent on all your cluster nodes with fleet:
 
     # docker exec -ti zabbix-coreos /bin/bash
 
+Inside the container:
+
+    # cd /etc/zabbix/
+
 #### How to restart the agent ?
+
+    # docker exec -ti zabbix-coreos /bin/bash
+
+Inside the container:
 
     # supervisorctl restart zabbix-agent
 
 #### How to add custom user parameters for a host ?
 
-Create a custom configuration file *hostname.conf* in *etc/zabbix/*.
+Create a custom configuration file *HOSTNAME.conf* in *etc/zabbix/* where HOSTNAME matches the value used for your host agent. Docker will concatenate this file into the main configuration file before running the container.
 
-Exemple: if the hostname option equals to *5bcc6a59c4234d1eac3d6c57e3e58eff* :
+Exemple 1: with manual registration, if your zabbix host is *myhost*:
 
     # vim etc/zabbix/5bcc6a59c4234d1eac3d6c57e3e58eff.conf
 
-    UserParameter=app.uptime,curl -Ss http://host1.mycluster.my.domain|jq '.uptime'
+Exemple 2: with auto-registration, if you use *cluster* as host metadata and *5bcc6a59c4234d1eac3d6c57e3e58eff* is the machine id of your real host:
 
-Docker will concatenate this file into the main configuration file before running the container.
+    # vim etc/zabbix/cluster-5bcc6a59c4234d1eac3d6c57e3e58eff.conf
+
