@@ -1,0 +1,16 @@
+[Unit]
+Description=zabbix-agent
+Requires=docker.service
+After=docker.service
+EnvironmentFile=/etc/default/zabbix-agent
+
+[Service]
+ExecStartPre=-/usr/bin/docker kill zabbix-agent
+ExecStartPre=-/usr/bin/docker rm zabbix-agent
+ExecStartPre=/usr/bin/docker pull bhuisgen/docker-zabbix-coreos:latest
+ExecStart=/usr/bin/docker run --name zabbix-agent -p 10050:10050 -v /:/coreos:ro --restart=always bhuisgen/docker-zabbix-coreos:latest 1.2.3.4 mycluster myhost
+ExecStop=/usr/bin/docker stop zabbix-agent
+TimeoutStartSec=300
+
+[X-Fleet]
+Global=true
