@@ -37,7 +37,10 @@ To disable auto-registration, don't create the action.
 
 #### Docker
 
-    # docker run -d -p 10050:10050 -v /:/coreos:ro --name zabbix-coreos bhuisgen/docker-zabbix-coreos <SERVER> <HOSTMETADATA> [<HOSTNAME>]
+    # docker run -d -p 10050:10050 \
+        -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro \
+        -v /var/run/docker.sock:/coreos/var/run/docker.sock \
+        --name zabbix-coreos bhuisgen/docker-zabbix-coreos <SERVER> <HOSTMETADATA> [<HOSTNAME>]
 
 The needed options are:
 

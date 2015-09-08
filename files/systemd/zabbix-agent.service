@@ -8,6 +8,6 @@ EnvironmentFile=/etc/default/zabbix-agent
 ExecStartPre=-/usr/bin/docker kill zabbix-agent
 ExecStartPre=-/usr/bin/docker rm zabbix-agent
 ExecStartPre=/usr/bin/docker pull bhuisgen/docker-zabbix-coreos:latest
-ExecStart=/usr/bin/docker run --name zabbix-agent -p 10050:10050 -v /:/coreos:ro --restart=always bhuisgen/docker-zabbix-coreos:latest 1.2.3.4 mycluster myhost
+ExecStart=/usr/bin/docker run --name zabbix-agent -p 10050:10050 -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro -v /var/run/docker.sock:/coreos/var/run/docker.sock --restart=always bhuisgen/docker-zabbix-coreos:latest 1.2.3.4 mycluster myhost
 ExecStop=/usr/bin/docker stop zabbix-agent
 TimeoutStartSec=300
