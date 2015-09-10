@@ -1,6 +1,6 @@
 #!/bin/sh
 
-USAGE="Usage: `basename $0` [-s <SOCKET>]"
+USAGE="Usage: $(basename "$0") [-s <SOCKET>]"
 DOCKER_SOCKET=/var/run/docker.sock
 
 while getopts hs: OPT; do
@@ -19,38 +19,38 @@ while getopts hs: OPT; do
     esac
 done
 
-CTS=$(echo "GET /containers/json?all=1 HTTP/1.0\r\n"|sudo netcat -U $DOCKER_SOCKET|sed '/^HTTP\/1.. 200 OK\r$/,/^\r$/d')
-LEN=$(echo $CTS|jq "length")
+CTS=$(echo "GET /containers/json?all=1 HTTP/1.0\r\n"|sudo netcat -U "$DOCKER_SOCKET"|tail -n +5)
+LEN=$(echo "$CTS"|jq "length")
 
-for I in `seq 0 $(($LEN-1))`
+for I in $(seq 0 $((LEN-1)))
 do
-    ID=$(echo $CTS|jq ".[$I].Id"|sed -e 's/^"//' -e 's/"$//')
-    NAME=$(echo $CTS|jq ".[$I].Names[0]"|sed -e 's/^"\//"/'|sed -e 's/^"//' -e 's/"$//')
+    ID=$(echo "$CTS"|jq ".[$I].Id"|sed -e 's/^"//' -e 's/"$//')
+    NAME=$(echo "$CTS"|jq ".[$I].Names[0]"|sed -e 's/^"\//"/'|sed -e 's/^"//' -e 's/"$//')
     
-    CT=$(echo "GET /containers/$ID/json HTTP/1.0\r\n"|sudo netcat -U $DOCKER_SOCKET|sed '/^HTTP\/1.. 200 OK\r$/,/^\r$/d')
-    RUNNING=$(echo $CT|jq ".State.Running"|sed -e 's/^"//' -e 's/"$//')
-    PID=$(echo $CT|jq ".State.Pid"|sed -e 's/^"//' -e 's/"$//')
-    EXITCODE=$(echo $CT|jq ".State.ExitCode"|sed -e 's/^"//' -e 's/"$//')
+    CT=$(echo "GET /containers/$ID/json HTTP/1.0\r\n"|sudo netcat -U "$DOCKER_SOCKET"|tail -n +5)
+    RUNNING=$(echo "$CT"|jq ".State.Running"|sed -e 's/^"//' -e 's/"$//')
+    PID=$(echo "$CT"|jq ".State.Pid"|sed -e 's/^"//' -e 's/"$//')
+    EXITCODE=$(echo "$CT"|jq ".State.ExitCode"|sed -e 's/^"//' -e 's/"$//')
 
     echo "- docker.containers.running[$NAME] $RUNNING"
     echo "- docker.containers.pid[$NAME] $PID"
     echo "- docker.containers.exitcode[$NAME] $EXITCODE"
 
     if [ "$RUNNING" = "true" ]; then
-        TOP=$(echo "GET /containers/$ID/top?ps_args=-aux HTTP/1.0\r\n"|sudo netcat -U $DOCKER_SOCKET|sed '/^HTTP\/1.. 200 OK\r$/,/^\r$/d')
-        PS=$(echo $TOP|jq ".Processes")
-        PS_LEN=$(echo $PS|jq "length")
+        TOP=$(echo "GET /containers/$ID/top?ps_args=-aux HTTP/1.0\r\n"|sudo netcat -U "$DOCKER_SOCKET"|tail -n +5)
+        PS=$(echo "$TOP"|jq ".Processes")
+        PS_LEN=$(echo "$PS"|jq "length")
 
-        for J in `seq 0 $(($PS_LEN-1))`
+        for J in $(seq 0 $((PS_LEN-1)))
         do
-            P=$(echo $PS|jq ".[$J]")
+            P=$(echo "$PS"|jq ".[$J]")
 
-            PID=$(echo $P|jq ".[1]"|sed -e 's/^"//' -e 's/"$//')
-            CPU=$(echo $P|jq ".[2]"|sed -e 's/^"//' -e 's/"$//')
-            MEM=$(echo $P|jq ".[3]"|sed -e 's/^"//' -e 's/"$//')
-            VSZ=$(echo $P|jq ".[4]"|sed -e 's/^"//' -e 's/"$//')
-            RSS=$(echo $P|jq ".[5]"|sed -e 's/^"//' -e 's/"$//')
-            COMMAND=$(echo $P|jq ".[10]"|sed -e 's/^"//' -e 's/"$//')
+            PID=$(echo "$P"|jq ".[1]"|sed -e 's/^"//' -e 's/"$//')
+            CPU=$(echo "$P"|jq ".[2]"|sed -e 's/^"//' -e 's/"$//')
+            MEM=$(echo "$P"|jq ".[3]"|sed -e 's/^"//' -e 's/"$//')
+            VSZ=$(echo "$P"|jq ".[4]"|sed -e 's/^"//' -e 's/"$//')
+            RSS=$(echo "$P"|jq ".[5]"|sed -e 's/^"//' -e 's/"$//')
+            COMMAND=$(echo "$P"|jq ".[10]"|sed -e 's/^"//' -e 's/"$//')
 
             echo "- docker.top.cpu[$NAME,$PID] $CPU"
             echo "- docker.top.mem[$NAME,$PID] $MEM"
@@ -59,8 +59,4 @@ do
             echo "- docker.top.command[$NAME,$PID] \"$COMMAND\""
         done
     fi
-
-    #if [ "$RUNNING" = "true" ]; then
-    #    STREAM=$(echo -e "GET /containers/monitoring/stats?stream=false HTTP/1.0\r\n"|netcat -U /coreos/var/run/docker.sock|tail -n +5|while read -r line; do echo "$line" && exit; done)
-    #fi
 done
