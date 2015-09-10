@@ -18,9 +18,9 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
 
 ### Configure your Zabbix server
 
-#### Manual registration
+#### Import templates
 
-Create a host with the DNS host or the IP address of the node.
+Import the needed templates in *etc/zabbix/templates*
 
 #### Auto-registration
 
@@ -31,7 +31,7 @@ To automatically create new host on the zabbix server, create a auto-registratio
 
 The host metadata value is the value shared by all your cluster nodes. Each node must shared the same value.
 
-To disable auto-registration, don't create the action.
+If you don't want to use the auto-registration, you must add each node in the frontend.
 
 ### Run the container
 
@@ -109,4 +109,3 @@ Exemple 1: with manual registration, if your zabbix host is *myhost*:
 Exemple 2: with auto-registration, if you use *cluster* as host metadata and *5bcc6a59c4234d1eac3d6c57e3e58eff* is the machine id of your real host:
 
     # vim etc/zabbix/cluster-5bcc6a59c4234d1eac3d6c57e3e58eff.conf
-
