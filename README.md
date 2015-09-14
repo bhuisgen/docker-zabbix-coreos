@@ -39,14 +39,14 @@ If you don't want to use the auto-registration, you must add each node in the fr
 
 To create the container:
 
-    # docker run -d -p 10050:10050 \
+    # docker run -d -p 10050:10050 -u 0 -c 1024 -m 64M --memory-swap=-1 \
         -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro \
         -v /var/run/docker.sock:/coreos/var/run/docker.sock \
         --name zabbix-coreos bhuisgen/docker-zabbix-coreos <SERVER> <HOSTMETADATA> [<HOSTNAME>]
 
 If you want to access directly to the network stack of the node, you can use the *host* network mode but it is less secure:
 
-    # docker run -d -p 10050:10050 --net="host" \
+    # docker run -d -p 10050:10050 -u 0 -c 1024 -m 64M --memory-swap=-1 --net="host" \
         -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro \
         -v /var/run/docker.sock:/coreos/var/run/docker.sock \
         --name zabbix-coreos bhuisgen/docker-zabbix-coreos <SERVER> <HOSTMETADATA> [<HOSTNAME>]
