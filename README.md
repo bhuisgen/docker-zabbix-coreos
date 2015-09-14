@@ -22,7 +22,7 @@ You can access the Docker REST API through the socket file */coreos/var/run/dock
 
 Import the needed templates in *etc/zabbix/templates*
 
-#### Auto-registration
+#### Create auto-registration action (optional)
 
 To automatically create new host on the zabbix server, create a auto-registration action (Configuration/Actions/Auto-registration):
 
@@ -37,7 +37,16 @@ If you don't want to use the auto-registration, you must add each node in the fr
 
 #### Docker
 
+To create the container:
+
     # docker run -d -p 10050:10050 \
+        -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro \
+        -v /var/run/docker.sock:/coreos/var/run/docker.sock \
+        --name zabbix-coreos bhuisgen/docker-zabbix-coreos <SERVER> <HOSTMETADATA> [<HOSTNAME>]
+
+If you want to access directly to the network stack of the node, you can use the *host* network mode but it is less secure:
+
+    # docker run -d -p 10050:10050 --net="host" \
         -v /proc:/coreos/proc:ro -v /sys:/coreos/sys:ro -v /dev:/coreos/dev:ro \
         -v /var/run/docker.sock:/coreos/var/run/docker.sock \
         --name zabbix-coreos bhuisgen/docker-zabbix-coreos <SERVER> <HOSTMETADATA> [<HOSTNAME>]
@@ -48,9 +57,7 @@ The needed options are:
 * *HOSTMETADATA* (required): the metadata value shared by all servers on the same cluster. This value will match the autoregistration action
 * *HOSTNAME* (optional): the hostname used by this agent in the zabbix frontend. If no value is given, the machine id of the host will be used
 
-The agent will start and the auto-registration will add your agent if a auto-registration action is matched for your host metadata.
-
-If you don't want to auto-register your nodes, you need to specify the hostname value to use.
+The agent will start and the auto-registration will add your agent if a auto-registration action is matched for your host metadata. If you don't want to auto-register your nodes, you need to specify the hostname value to use.
 
 #### Fleet
 
