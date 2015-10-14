@@ -1,0 +1,48 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+sub get_vmname_by_id
+{
+   my $vmname=`cat /etc/qemu-server/$_[0].conf | grep name | cut -d \: -f 2`;
+
+   $vmname =~ s/^\s+//; #remove leading spaces
+   $vmname =~ s/\s+$//; #remove trailing spaces
+
+   return $vmname
+}
+
+my $first = 1;
+print "{\n";
+print "\t\"data\":[\n\n";
+
+for (`cat /proc/diskstats`)
+{
+   my ($major,$minor,$disk) = m/^\s*([0-9]+)\s+([0-9]+)\s+(\S+)\s.*$/;
+   my $dmnamefile = "/coreos/sys/dev/block/$major:$minor/dm/name";
+   my $vmid= "";
+   my $vmname = "";
+   my $dmname = $disk;
+   my $diskdev = "/dev/$disk";
+
+   # DM name
+   if (-e $dmnamefile) {
+      $dmname = `cat $dmnamefile`;
+      $dmname =~ s/\n$//; #remove trailing \n
+      $diskdev = "/dev/mapper/$dmname";
+   }
+
+   print "\t,\n" if not $first;
+   $first = 0;
+
+   print "\t{\n";
+   print "\t\t\"{#DISK}\":\"$disk\",\n";
+   print "\t\t\"{#DISKDEV}\":\"$diskdev\",\n";
+   print "\t\t\"{#DMNAME}\":\"$dmname\"\n";
+   print "\t}\n";
+}
+
+print "\n\t]\n";
+print "}\n";
+

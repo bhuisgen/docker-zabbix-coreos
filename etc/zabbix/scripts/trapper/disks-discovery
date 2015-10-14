@@ -1,0 +1,16 @@
+#!/bin/sh
+
+ZABBIX_SENDER=/usr/bin/zabbix_sender
+ZABBIX_CONF=/etc/zabbix/zabbix_agentd.conf
+
+zsend () {
+   $ZABBIX_SENDER -c $ZABBIX_CONF -k "$1" -o "$2" > /dev/null 2>&1
+}
+
+KEY="disks.discovery"
+VALUE=$(/etc/zabbix/scripts/discovery/disks)
+if [ "$?" -ne "0" ]; then
+   exit 1
+fi
+
+zsend "$KEY" "$VALUE"
