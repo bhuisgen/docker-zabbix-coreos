@@ -2,9 +2,9 @@
 Description=zabbix-agent
 Requires=docker.service
 After=docker.service
-EnvironmentFile=/etc/default/zabbix-agent
 
 [Service]
+EnvironmentFile=/etc/default/zabbix-agent
 ExecStartPre=-/usr/bin/docker kill zabbix-agent
 ExecStartPre=-/usr/bin/docker rm zabbix-agent
 ExecStartPre=/usr/bin/docker pull bhuisgen/docker-zabbix-coreos:latest
